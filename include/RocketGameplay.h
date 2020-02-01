@@ -1,6 +1,8 @@
 #ifndef ROCKET_GAMEPLAY_H
 #define ROCKET_GAMEPLAY_H
 
+#include <Arduino.h>
+
 #include <ScoresResponseMessage.h>
 class RocketGameplay
 {
@@ -8,6 +10,16 @@ class RocketGameplay
         inline ScoresResponseMessage GetScores()
         {
             return ScoresResponseMessage();
+        }
+
+        inline void UpdateUpPressed(bool val)
+        {
+
+        }
+
+        inline void NewGameStarted(byte name[11])
+        {
+
         }
 };
 

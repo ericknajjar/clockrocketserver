@@ -1,13 +1,13 @@
-#ifndef RECEIVED_MESSAGE_H
-#define RECEIVED_MESSAGE_H
+#ifndef GAMEPLAY_MESSAGE_H
+#define GAMEPLAY_MESSAGE_H
 #include <Arduino.h>
 #include <ReceivedMessageType.h>
 
-struct ReceivedMessage
+struct GameplayMessage
 {
     ReceivedMessageType header: 3;
     byte payload: 5;
 };
 
 
-#endif//RECEIVED_MESSAGE_H
+#endif//GAMEPLAY_MESSAGE_H

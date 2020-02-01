@@ -4,10 +4,11 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
-#include <ReceivedMessage.h>
+#include <GameplayMessage.h>
 #include <ConnectionResponseMesssage.h>
-#include <functional>
+#include <ConnectionMessage.h>
 #include <ScoresResponseMessage.h>
+#include <functional>
 
 const IPAddress LOCAL_HOST = IPAddress(127,0,0,1);
 
@@ -16,7 +17,7 @@ template<class Gameplay> class RocketServer
     public:
         RocketServer(Gameplay* gameplayMessageHandler) 
         {
-            m_currentState = std::bind(&RocketServer::WaitingForConnectionState,this,std::placeholders::_1);
+            m_currentState = std::bind(&RocketServer::WaitingForConnectionState,this);
             m_gameplayMessageHandler = gameplayMessageHandler;
         }
 
@@ -36,20 +37,25 @@ template<class Gameplay> class RocketServer
             return m_connectedIp != LOCAL_HOST;
         }
 
+        inline void ForceDisconnect(bool send)
+        {
+            if(send)
+            {
+                ConnectionResponseMessage response(false);
+                Send(response,m_connectedIp, m_connectedPort);
+            }
+
+            m_connectedIp = LOCAL_HOST;
+            m_currentState = std::bind(&RocketServer::WaitingForConnectionState,this);
+        }
+
         inline void Update()
         {
             int packetSize = m_udp.parsePacket();
             if (packetSize)
             {
-                ReceivedMessage message;
-                bool wellFormedPackage = packetSize == sizeof(message);
-
-                if(wellFormedPackage)
-                {
-                    m_currentState(message);
-                }
-                else
-                {
+                if(!m_currentState())
+                {   
                     m_udp.flush();
                 }
             }
@@ -66,51 +72,102 @@ template<class Gameplay> class RocketServer
              m_udp.endPacket();
         }
 
-        inline void ReceivingGameCommandsState(const ReceivedMessage&  message)
+        inline bool ReceivingGameCommandsState()
         {
-            switch (message.header )
+            if(IsMessageFromConnected())
             {
-            case ReceivedMessageType::DISCONNECT:
-                break;
+                GameplayMessage message;
+                int packetSize = Read(message);
+                bool wellFormedPackage = packetSize == sizeof(message);
+                
+                if(!wellFormedPackage)
+                    return false;
 
-            case ReceivedMessageType::CHECK_SCORE:
+                switch (message.header)
+                {
+
+                    case ReceivedMessageType::DISCONNECT:
+                    {
+                        ForceDisconnect(false);
+                        break;
+                    }
+                        
+                    case ReceivedMessageType::CHECK_SCORE:
+                    {
+                        ScoresResponseMessage scoreMessage = m_gameplayMessageHandler->GetScores();
+                        Send(scoreMessage);
+                        break;
+                    
+                    }
+
+                    case ReceivedMessageType::UP_PRESSED:
+                    {
+                        m_gameplayMessageHandler->UpdateUpPressed(true);
+                        break;
+                    }
+
+                    case ReceivedMessageType::UP_FREE:
+                    {
+                        m_gameplayMessageHandler->UpdateUpPressed(false);
+                        break;
+                    }
+
+                    default:
+                    {
+                        break;
+                    }
+                    
+                }
+                
+                return true;
+            }
+            else
             {
-                ScoresResponseMessage scoreMessage = m_gameplayMessageHandler->GetScores();
-                Send(scoreMessage);
-                break;
+                ConnectionResponseMessage response(false);
+                Send(response,m_udp.remoteIP(), m_udp.remotePort());
+                return false;
+            }
             
-            }
-
-            default:
-                return;
-            }
-
+            
         }
 
-        inline void WaitingForConnectionState(const ReceivedMessage&  message)
+        template<class T> int Read(T& message)
         {
+            return m_udp.read((char*)&message,sizeof(message));
+        }
+
+        bool IsMessageFromConnected()
+        {
+            return m_udp.remoteIP() == m_connectedIp;
+        }
+
+        inline bool WaitingForConnectionState()
+        {
+            ConnectionMessage message;
+            Read(message);
+
             if(message.header == ReceivedMessageType::CONNECT)
             {
-                ConnectionResponseMessage response(true);
-                if(m_connectedIp == LOCAL_HOST)
-                {
-                    m_connectedIp = m_udp.remoteIP();
-                    m_connectedPort = m_udp.remotePort();
-                    m_currentState = std::bind(&RocketServer::ReceivingGameCommandsState,this,std::placeholders::_1);
-                }
-                else
-                {
-                    response = ConnectionResponseMessage(false);
                 
-                }
-                Send(response,m_udp.remoteIP(), m_udp.remotePort());
+                m_connectedIp = m_udp.remoteIP();
+                m_connectedPort = m_udp.remotePort();
+  
+                ConnectionResponseMessage response(true);
+                Send(response,m_connectedIp, m_connectedPort);
+                m_gameplayMessageHandler->NewGameStarted(message.name);
+
+               m_currentState = std::bind(&RocketServer::ReceivingGameCommandsState,this);
+               return true;
+                
             }    
+
+            return false;
         }
 
         IPAddress m_connectedIp = LOCAL_HOST;
         uint16_t m_connectedPort;
         WiFiUDP m_udp;
-        std::function<void(const ReceivedMessage&)> m_currentState;
+        std::function<bool(void)> m_currentState;
         Gameplay* m_gameplayMessageHandler;
         
 };

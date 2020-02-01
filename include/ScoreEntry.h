@@ -6,7 +6,7 @@
 
 struct ScoreEntry
 {
-    byte name[3];
+    byte name[11];
     uint32_t score;
 };
 
