@@ -11,8 +11,14 @@ struct ConnectionResponseMessage
         header = accepted?SentMessageType::CONNECTION_ACCEPTED:SentMessageType::CONNECTION_REFUSED;
     }
 
+    inline uint16_t AsByteArray(byte*& ret) const
+    {
+        ret = (byte*)this;
+        return sizeof(ConnectionResponseMessage);
+    }
+
     private:
-        byte header: 2;
+        byte header: 3;
     
 };
 

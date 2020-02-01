@@ -45,7 +45,9 @@ class RocketServer
         template<class T> void  Send(const T& message, const IPAddress& address,uint16_t port)
         {
              m_udp.beginPacket(address,port);
-             m_udp.write((byte*)&message,sizeof(message));
+             byte* toSend = nullptr;
+             uint16_t size = message.AsByteArray(toSend);
+             m_udp.write(toSend,size);
              m_udp.endPacket();
         }
 
@@ -83,9 +85,6 @@ class RocketServer
                         Send(response,m_udp.remoteIP(), m_udp.remotePort());
                     }
 
-
-
-                    
                 }
                 else
                 {

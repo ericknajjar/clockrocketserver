@@ -4,7 +4,7 @@
 
 enum ReceivedMessageType: byte
 {
-    CONNECT=0,CHECK_SCORE=1
+    CONNECT=0,CHECK_SCORE=1,UP_PRESSED=2,UP_FREE=3,DISCONNECT=4
 };
 
 #endif//RECEIVED_MESSAGE_TYPE_H
