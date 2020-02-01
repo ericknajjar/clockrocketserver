@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
-#include "headers/ReceivedMessage.h"
+#include <ReceivedMessage.h>
 
 WiFiUDP Udp;
 const int udp_port = 5000;
@@ -11,7 +11,7 @@ ReceivedMessage message;
 void setup() {
   
   Serial.begin(115200);
-  boolean result = WiFi.softAP("ClockRocket", "123");
+  WiFi.softAP("ClockRocket", "123");
   Udp.begin(udp_port);
 
 }
