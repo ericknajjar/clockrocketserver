@@ -1,13 +1,13 @@
 #include <Arduino.h>
 #include <RocketServer.h>
 
-RocketServer server(500);
+RocketServer server;
 
 
 void setup() {
   
   Serial.begin(115200);
-  server.Setup();
+  server.Setup(5000);
 
 }
 
