@@ -22,7 +22,7 @@ template<class Gameplay> class RocketServer
 
         inline void Setup(uint16_t udpPot)
         {
-              WiFi.softAP("ClockRocket", "123");
+              WiFi.softAP("ClockRocket", "12345678");
               m_udp.begin(udpPot);
         }
 
@@ -72,7 +72,7 @@ template<class Gameplay> class RocketServer
             {
             case ReceivedMessageType::DISCONNECT:
                 break;
-                
+
             case ReceivedMessageType::CHECK_SCORE:
             {
                 ScoresResponseMessage scoreMessage = m_gameplayMessageHandler->GetScores();
