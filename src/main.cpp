@@ -1,9 +1,38 @@
 #include <Arduino.h>
+#include <ESP8266WiFi.h>
+#include <WiFiUdp.h>
+#include "headers/ReceivedMessage.h"
+
+WiFiUDP Udp;
+const int udp_port = 5000;
+ReceivedMessage message;
+
 
 void setup() {
-  // put your setup code here, to run once:
+  
+  Serial.begin(115200);
+  boolean result = WiFi.softAP("ClockRocket", "123");
+  Udp.begin(udp_port);
+
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
+
+  int packetSize = Udp.parsePacket();
+  
+
+  if (packetSize)
+  {
+      bool wellFormedPackage = packetSize == sizeof(message);
+
+      if(wellFormedPackage)
+      {
+        Udp.read((char*)&message, sizeof(message));
+        //Do code with message here
+      }
+      else
+      {
+        Udp.flush();
+      }      
+  }
 }
