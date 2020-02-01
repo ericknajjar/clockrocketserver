@@ -5,8 +5,8 @@
 
 struct ReceivedMessage
 {
-    ReceivedMessageType header: 6;
-    byte payload: 2;
+    ReceivedMessageType header: 3;
+    byte payload: 5;
 };
 
 

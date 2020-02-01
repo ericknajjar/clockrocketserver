@@ -7,16 +7,17 @@
 #include <ReceivedMessage.h>
 #include <ConnectionResponseMesssage.h>
 #include <functional>
-
+#include <ScoresResponseMessage.h>
 
 const IPAddress LOCAL_HOST = IPAddress(127,0,0,1);
 
-class RocketServer
+template<class Gameplay> class RocketServer
 {
     public:
-        RocketServer() 
+        RocketServer(Gameplay* gameplayMessageHandler) 
         {
-            m_currentState = std::bind(&RocketServer::WaitingForConnectionState,this);
+            m_currentState = std::bind(&RocketServer::WaitingForConnectionState,this,std::placeholders::_1);
+            m_gameplayMessageHandler = gameplayMessageHandler;
         }
 
         inline void Setup(uint16_t udpPot)
@@ -37,7 +38,21 @@ class RocketServer
 
         inline void Update()
         {
-            m_currentState();
+            int packetSize = m_udp.parsePacket();
+            if (packetSize)
+            {
+                ReceivedMessage message;
+                bool wellFormedPackage = packetSize == sizeof(message);
+
+                if(wellFormedPackage)
+                {
+                    m_currentState(message);
+                }
+                else
+                {
+                    m_udp.flush();
+                }
+            }
         }
 
     private:
@@ -51,56 +66,52 @@ class RocketServer
              m_udp.endPacket();
         }
 
-        inline void ReceivingGameCommandsState()
+        inline void ReceivingGameCommandsState(const ReceivedMessage&  message)
         {
+            switch (message.header )
+            {
+            case ReceivedMessageType::DISCONNECT:
+                break;
+                
+            case ReceivedMessageType::CHECK_SCORE:
+            {
+                ScoresResponseMessage scoreMessage = m_gameplayMessageHandler->GetScores();
+                Send(scoreMessage);
+                break;
+            
+            }
+
+            default:
+                return;
+            }
 
         }
 
-        inline void WaitingForConnectionState()
+        inline void WaitingForConnectionState(const ReceivedMessage&  message)
         {
-            int packetSize = m_udp.parsePacket();
-
-            if (packetSize)
+            if(message.header == ReceivedMessageType::CONNECT)
             {
-                bool wellFormedPackage = packetSize == sizeof(message);
-
-                if(wellFormedPackage)
+                ConnectionResponseMessage response(true);
+                if(m_connectedIp == LOCAL_HOST)
                 {
-                    m_udp.read((byte*)&message, sizeof(message));
-
-                    if(message.header == ReceivedMessageType::CONNECT)
-                    {
-                        ConnectionResponseMessage response(true);
-                        if(m_connectedIp == LOCAL_HOST)
-                        {
-                            m_connectedIp = m_udp.remoteIP();
-                            m_connectedPort = m_udp.remotePort();
-                            m_currentState = std::bind(&RocketServer::ReceivingGameCommandsState,this);
-                        }
-                        else
-                        {
-                            response = ConnectionResponseMessage(false);
-                           
-                        }
-                        Send(response,m_udp.remoteIP(), m_udp.remotePort());
-                    }
-
+                    m_connectedIp = m_udp.remoteIP();
+                    m_connectedPort = m_udp.remotePort();
+                    m_currentState = std::bind(&RocketServer::ReceivingGameCommandsState,this,std::placeholders::_1);
                 }
                 else
                 {
-                    m_udp.flush();
-                }      
-            }
+                    response = ConnectionResponseMessage(false);
+                
+                }
+                Send(response,m_udp.remoteIP(), m_udp.remotePort());
+            }    
         }
-
-        
 
         IPAddress m_connectedIp = LOCAL_HOST;
         uint16_t m_connectedPort;
-
         WiFiUDP m_udp;
-        ReceivedMessage message;
-        std::function<void(void)> m_currentState;
+        std::function<void(const ReceivedMessage&)> m_currentState;
+        Gameplay* m_gameplayMessageHandler;
         
 };
 
